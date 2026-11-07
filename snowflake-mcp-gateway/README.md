@@ -69,7 +69,7 @@ Request lifecycle for a tool call:
 | Concern | Choice |
 |---|---|
 | Language | Python 3.12 |
-| MCP | Official MCP Python SDK 2.x (`mcp>=2.3,<3`, server class `MCPServer`), Streamable HTTP transport. 2.x speaks the 2026-07-28 protocol revision and still serves 2025-era clients, so the session manager's `langchain-mcp-adapters` (which still requires SDK 1.x on its side) can connect. Step 2's contract test proves this. Turn the SDK's built-in OpenTelemetry tracing off, or configure it so tool arguments and results are never recorded. |
+| MCP | Official MCP Python SDK 2.x (`mcp>=2.3,<3`, server class `MCPServer`), Streamable HTTP transport. 2.x speaks the 2026-07-28 protocol revision and still serves 2025-era clients. Turn the SDK's built-in OpenTelemetry tracing off, or configure it so tool arguments and results are never recorded. |
 | HTTP | Starlette/uvicorn (what the SDK uses) |
 | Snowflake | `snowflake-connector-python` with key-pair auth |
 | SQL parsing | `sqlglot` with the `snowflake` dialect |
@@ -236,7 +236,7 @@ Each step ends with a commit. Keep each step small. Run `make check` before ever
 
 ### Step 2: MCP server skeleton
 - `app.py` builds the server with the MCP SDK (`MCPServer`), Streamable HTTP at `/mcp`, stateless so any task behind the load balancer can serve any request, plus `/healthz`. Register the four tools with stub handlers that return `status: blocked, reason: not implemented`. Set annotations. Declare only the `tools` and `resources` capabilities.
-- **Accept:** a test using `langchain-mcp-adapters` as the client (the same client the session manager uses) lists exactly four tools with the expected names, descriptions and annotations; `prompts/list` and sampling are not offered; `/healthz` returns 200.
+- **Accept:** a test using `langchain.mcp.MCPAdapter` as the client (the same client the session manager uses) lists exactly four tools with the expected names, descriptions and annotations; `prompts/list` and sampling are not offered; `/healthz` returns 200.
 
 ### Step 3: Caller authentication
 - `auth.py`: verify JWT (JWKS with caching; a static test key in tests), build `CallerContext(user, client_id, caller, session_id)`. Enforce the per-caller tool allowlist.
@@ -307,7 +307,9 @@ Each step ends with a commit. Keep each step small. Run `make check` before ever
 
 ## 11. How the session manager uses the gateway
 
-- The manager connects as an MCP client (for example with `langchain-mcp-adapters`) using a per-session JWT for the session's child client.
+- The manager connects with `langchain.mcp.MCPAdapter` (`langchain[mcp]>=1.4`, built on FastMCP 4, which uses MCP SDK 2.x), passing a `fastmcp.Client` with a per-session bearer JWT for the session's child client. This namespace is in beta, so pin exact versions. The older `langchain-mcp-adapters` package still requires SDK 1.x and is not used.
+- Do not register an elicitation handler on the client; approvals go through our own UI.
+- `langchain.mcp` wraps tools only. Code that needs the catalogue resources reads them with the FastMCP client directly (`client.read_resource(...)`).
 - It wraps the four tools with its own fixed descriptions and does not accept `tools/list_changed` updates mid-session.
 - It copies Parquet results from S3 into `/work/<session>` for the nono sandbox. The sandbox never calls the gateway.
 
