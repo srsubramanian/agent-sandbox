@@ -69,7 +69,7 @@ Request lifecycle for a tool call:
 | Concern | Choice |
 |---|---|
 | Language | Python 3.12 |
-| MCP | Official MCP Python SDK (`mcp`), Streamable HTTP transport |
+| MCP | Official MCP Python SDK (`mcp`), pinned `>=1.30,<2` for now, Streamable HTTP transport. The session manager's client, `langchain-mcp-adapters` (0.3.x), still requires `mcp<2`. Move to SDK 2.x only after the adapter supports it, and keep a contract test (step 2) that connects with the adapter. |
 | HTTP | Starlette/uvicorn (what the SDK uses) |
 | Snowflake | `snowflake-connector-python` with key-pair auth |
 | SQL parsing | `sqlglot` with the `snowflake` dialect |
@@ -236,7 +236,7 @@ Each step ends with a commit. Keep each step small. Run `make check` before ever
 
 ### Step 2: MCP server skeleton
 - `app.py` builds the server with the MCP SDK, Streamable HTTP at `/mcp`, plus `/healthz`. Register the four tools with stub handlers that return `status: blocked, reason: not implemented`. Set annotations. Declare only the `tools` and `resources` capabilities.
-- **Accept:** a test using the SDK client lists exactly four tools with the expected names, descriptions and annotations; `prompts/list` and sampling are not offered; `/healthz` returns 200.
+- **Accept:** a test using `langchain-mcp-adapters` as the client (the same client the session manager uses) lists exactly four tools with the expected names, descriptions and annotations; `prompts/list` and sampling are not offered; `/healthz` returns 200.
 
 ### Step 3: Caller authentication
 - `auth.py`: verify JWT (JWKS with caching; a static test key in tests), build `CallerContext(user, client_id, caller, session_id)`. Enforce the per-caller tool allowlist.
