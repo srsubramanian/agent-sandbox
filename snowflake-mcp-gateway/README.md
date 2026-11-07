@@ -69,7 +69,7 @@ Request lifecycle for a tool call:
 | Concern | Choice |
 |---|---|
 | Language | Python 3.12 |
-| MCP | Official MCP Python SDK (`mcp`), pinned `>=1.30,<2` for now, Streamable HTTP transport. The session manager's client, `langchain-mcp-adapters` (0.3.x), still requires `mcp<2`. Move to SDK 2.x only after the adapter supports it, and keep a contract test (step 2) that connects with the adapter. |
+| MCP | Official MCP Python SDK 2.x (`mcp>=2.3,<3`, server class `MCPServer`), Streamable HTTP transport. 2.x speaks the 2026-07-28 protocol revision and still serves 2025-era clients, so the session manager's `langchain-mcp-adapters` (which still requires SDK 1.x on its side) can connect. Step 2's contract test proves this. Turn the SDK's built-in OpenTelemetry tracing off, or configure it so tool arguments and results are never recorded. |
 | HTTP | Starlette/uvicorn (what the SDK uses) |
 | Snowflake | `snowflake-connector-python` with key-pair auth |
 | SQL parsing | `sqlglot` with the `snowflake` dialect |
@@ -235,7 +235,7 @@ Each step ends with a commit. Keep each step small. Run `make check` before ever
 - **Accept:** unit tests load the example configs; invalid config (unknown field, missing role) fails at startup with a clear message.
 
 ### Step 2: MCP server skeleton
-- `app.py` builds the server with the MCP SDK, Streamable HTTP at `/mcp`, plus `/healthz`. Register the four tools with stub handlers that return `status: blocked, reason: not implemented`. Set annotations. Declare only the `tools` and `resources` capabilities.
+- `app.py` builds the server with the MCP SDK (`MCPServer`), Streamable HTTP at `/mcp`, stateless so any task behind the load balancer can serve any request, plus `/healthz`. Register the four tools with stub handlers that return `status: blocked, reason: not implemented`. Set annotations. Declare only the `tools` and `resources` capabilities.
 - **Accept:** a test using `langchain-mcp-adapters` as the client (the same client the session manager uses) lists exactly four tools with the expected names, descriptions and annotations; `prompts/list` and sampling are not offered; `/healthz` returns 200.
 
 ### Step 3: Caller authentication
